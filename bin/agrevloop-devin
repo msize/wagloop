@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() { echo "usage: agrevloop-devin author|reviewer [skill args] [-- devin args]" >&2; exit 2; }
+
+role="${1:-}"
+case "$role" in author|reviewer) shift ;; *) usage ;; esac
+skill_args=()
+while [ $# -gt 0 ] && [ "$1" != "--" ]; do skill_args+=("$1"); shift; done
+[ $# -gt 0 ] && shift
+[ "$role" = reviewer ] && [ ${#skill_args[@]} -gt 0 ] && usage
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+root="$(git rev-parse --show-toplevel)"
+skill="$HOME/.config/devin/skills/agrevloop-$role/SKILL.md"
+[ -f "$skill" ] || { echo "agrevloop-devin: missing $skill, run install.sh first" >&2; exit 2; }
+
+partner=()
+if [ "$role" = author ]; then
+  partner=(--with codex)
+  for arg in "${skill_args[@]}"; do
+    case "$arg" in with=claude|with=codex|with=devin) partner=(--with "${arg#with=}") ;; with=*) usage ;; esac
+  done
+fi
+
+cd "$root"
+python "$here/agr.py" --as "$role" init --tool devin "${partner[@]}"
+
+prompt="You are the agrevloop ${role^^}. Read and follow the skill file at \"$(cygpath -m "$skill")\". Use this exact file, not a compatibility skill for another harness."
+if [ "$role" = author ]; then
+  prompt+=" Run it with the arguments: ${skill_args[*]:-(none)}"
+else
+  prompt+=" Handle any unread mail from the author, then wait for more mail as the skill specifies, keeping your turn open."
+fi
+
+exec devin "$@" -- "$prompt"

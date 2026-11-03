@@ -26,7 +26,7 @@ partner=()
 if [ "$role" = author ]; then
   partner=(--with codex)
   for arg in "${skill_args[@]}"; do
-    case "$arg" in with=claude|with=codex) partner=(--with "${arg#with=}") ;; with=*) usage ;; esac
+    case "$arg" in with=claude|with=codex|with=devin) partner=(--with "${arg#with=}") ;; with=*) usage ;; esac
   done
 fi
 

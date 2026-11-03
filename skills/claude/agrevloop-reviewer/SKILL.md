@@ -1,11 +1,11 @@
 ---
 name: agrevloop-reviewer
-description: 'Reviewer role of the agrevloop: review each step of an OpenSpec change that the Author (Claude or Codex) writes in the other pane of this agwinterm split, and answer by mail with APPROVED or CHANGES_REQUESTED. Use when started by agrevloop-claude reviewer, when told you are the agrevloop reviewer, or when mail from the author arrives for an agrevloop change.'
+description: 'Reviewer role of the agrevloop: review each step of an OpenSpec change that the Author (Claude, Codex or Devin) writes in the other pane of this agwinterm split, and answer by mail with APPROVED or CHANGES_REQUESTED. Use when started by agrevloop-claude reviewer, when told you are the agrevloop reviewer, or when mail from the author arrives for an agrevloop change.'
 ---
 
 # agrevloop, Reviewer (Claude)
 
-The Author, Claude or Codex in the other pane, writes an OpenSpec change step by step. You review
+The Author, Claude, Codex or Devin in the other pane, writes an OpenSpec change step by step. You review
 each step. The human watches both panes and decides at the gates.
 
 You are **read-only** in this checkout. Nothing sandboxes you, so this is your discipline: the only
@@ -28,7 +28,7 @@ $AGR status active              # or blocked --sound, completed, idle
 
 - Write the review file first, then send it by path.
 - **Never pass `--nudge`.** `send` decides it: a Codex Author gets a one-line pointer typed into its
-  pane through agworkbench's peer-chat, a Claude Author is woken by its own waiter. If the send
+  pane through agworkbench's peer-chat, a Claude or Devin Author uses its own waiter. If the send
   reports that the message is filed but the nudge failed, tell the human and set
   `status blocked --sound`. Never type into the Author's pane any other way.
 - **Keep one background waiter whenever you are idle, and end your turn.** Nobody rings you: the
@@ -46,7 +46,7 @@ $AGR init --tool claude
 $AGR doctor
 ```
 
-Usually the Author's `agr.py` started you in the right pane, at the checkout root: a Claude Author
+Usually the Author's `agr.py` started you in the right pane, at the checkout root: a Claude or Devin Author
 after filing its first request, so that request is already in your inbox, a Codex Author before
 writing anything. Started by hand, you may come first. Either way: `init` fails without a split,
 say so and stop. If `init` or `doctor` shows no `author` box, the Author is not started yet: that

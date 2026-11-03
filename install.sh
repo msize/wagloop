@@ -10,6 +10,7 @@ agr="$(cygpath -m "$here/bin/agr.py")"
 bin="$here/bin"   # Git Bash form: the skills show it as the launchers to run
 codex_review="${CODEX_REVIEW_SKILL:?set CODEX_REVIEW_SKILL to how Codex invokes its review skill, e.g. \$plugin:review}"
 claude_review="${CLAUDE_REVIEW_SKILL:?set CLAUDE_REVIEW_SKILL to how Claude Code invokes its review skill, e.g. /plugin:review}"
+devin_review="${DEVIN_REVIEW_SKILL:?set DEVIN_REVIEW_SKILL to how Devin invokes its review skill, e.g. review}"
 
 [ -f "$workbench/lib/agmsg.py" ] || {
   echo "install: agworkbench not found at $workbench (git clone https://github.com/yeroo/agworkbench there, or set AGWORKBENCH)" >&2
@@ -26,10 +27,11 @@ install_skill() {
 for role in author reviewer; do
   install_skill "$here/skills/claude/agrevloop-$role" "$HOME/.claude/skills/agrevloop-$role" "$claude_review"
   install_skill "$here/skills/codex/agrevloop-$role" "$HOME/.codex/skills/agrevloop-$role" "$codex_review"
+  install_skill "$here/skills/devin/agrevloop-$role" "$HOME/.config/devin/skills/agrevloop-$role" "$devin_review"
 done
-chmod +x "$here/bin/agrevloop-claude" "$here/bin/agrevloop-codex" "$here/bin/agr.py"
+chmod +x "$here/bin/agrevloop-claude" "$here/bin/agrevloop-codex" "$here/bin/agrevloop-devin" "$here/bin/agr.py"
 
 case ":$PATH:" in
   *":$here/bin:"*) ;;
-  *) echo "add to PATH to get agrevloop-claude and agrevloop-codex: export PATH=\"$here/bin:\$PATH\"" ;;
+  *) echo "add to PATH to get agrevloop-claude, agrevloop-codex and agrevloop-devin: export PATH=\"$here/bin:\$PATH\"" ;;
 esac

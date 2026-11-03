@@ -1,11 +1,11 @@
 ---
 name: agrevloop-author
-description: 'Author role of the agrevloop: drive an OpenSpec change through proposal, tasks and implementation, each step reviewed by the Reviewer (Claude or Codex) in the other pane of this agwinterm split until it approves. Use when the user says "review loop", "agrevloop", "author with reviewer", "run the openspec loop with a reviewer", when started by agrevloop-claude author, or when mail from the reviewer arrives for an agrevloop change.'
+description: 'Author role of the agrevloop: drive an OpenSpec change through proposal, tasks and implementation, each step reviewed by the Reviewer (Claude, Codex or Devin) in the other pane of this agwinterm split until it approves. Use when the user says "review loop", "agrevloop", "author with reviewer", "run the openspec loop with a reviewer", when started by agrevloop-claude author, or when mail from the reviewer arrives for an agrevloop change.'
 ---
 
 # agrevloop, Author (Claude)
 
-You write. The Reviewer, Claude or Codex in the other pane of this agwinterm split, reviews. The
+You write. The Reviewer, Claude, Codex or Devin in the other pane of this agwinterm split, reviews. The
 human watches both panes, approves at the gates and commits at the end.
 
 | who | does |
@@ -16,7 +16,7 @@ human watches both panes, approves at the gates and commits at the end.
 
 ## Arguments
 
-`<change-id or description> [gates=p1|all|none] [with=codex|claude]`, or `review [<name>] [with=...]`
+`<change-id or description> [gates=p1|all|none] [with=codex|claude|devin]`, or `review [<name>] [with=...]`
 
 - No arguments: run `openspec list` and `git status --porcelain`, then
   - exactly one active change: continue it, and say which one;
@@ -31,7 +31,7 @@ human watches both panes, approves at the gates and commits at the end.
   kebab-case id from the description and create the change.
 - `gates` says where you stop for the human. `p1` (default): after phase 1 and at the end. `all`:
   after every phase. `none`: only at the end. A failed phase always stops, whatever the gates.
-- `with` names the Reviewer's tool: `codex` (default) or `claude`. It is not part of the change id
+- `with` names the Reviewer's tool: `codex` (default), `claude` or `devin`. It is not part of the change id
   or the description.
 
 ## The channel
@@ -56,7 +56,7 @@ $AGR status active              # or blocked --sound, completed
   not arm the waiter.
 - **Never pass `--nudge`.** `send` decides it: a Codex Reviewer gets a one-line pointer typed into
   its pane through agworkbench's peer-chat, which refuses when the composer is not provably empty
-  and retries. A Claude Reviewer is woken by its own waiter. If the send reports that the message
+  and retries. A Claude or Devin Reviewer uses its own waiter. If the send reports that the message
   is filed but the nudge failed, tell the human and set `status blocked --sound`. Never type into
   the Reviewer's pane any other way.
 - **After every send, keep one background waiter and end your turn.** Run `$AGR wait --timeout 55`

@@ -42,7 +42,7 @@ PAIR_FILE = "pair.json"
 # The review skill persists its runs in review-runs/ at the checkout root for `incremental`.
 EXCLUDED = (f"/{HUB_DIR}/", "/review-runs/")
 PEER = {"author": "reviewer", "reviewer": "author"}
-TOOLS = ("claude", "codex")
+TOOLS = ("claude", "codex", "devin")
 BIN = Path(__file__).resolve().parent
 
 # A pane is typed into only when its last rows prove a shell prompt and nothing like an agent.
@@ -81,7 +81,7 @@ def hub_dir() -> Path:
     root = find_up(Path.cwd(), HUB_DIR)
     if root is None:
         die(f"no {HUB_DIR}/ above {Path.cwd()}; start both agents with agrevloop-claude or "
-            f"agrevloop-codex, or run `agr.py --as <role> init --tool <tool>` first")
+            f"agrevloop-codex or agrevloop-devin, or run `agr.py --as <role> init --tool <tool>` first")
     return root / HUB_DIR
 
 
@@ -250,10 +250,10 @@ def init(box: str, rest: list[str], lib: Path) -> int:
     tool, partner = options.get("--tool"), options.get("--with")
     if len(rest) % 2 or set(options) - {"--tool", "--with"} or tool not in TOOLS or \
             (partner is not None and (box != "author" or partner not in TOOLS)):
-        die("usage: agr.py --as author init --tool claude|codex [--with claude|codex]\n"
-            "       agr.py --as reviewer init --tool claude|codex")
+        die("usage: agr.py --as author init --tool claude|codex|devin [--with claude|codex|devin]\n"
+            "       agr.py --as reviewer init --tool claude|codex|devin")
     if tool == "codex" and partner == "codex":
-        die("both agents would be Codex: neither could wake the other; use --with claude")
+        die("both agents would be Codex: neither could wake the other; use --with claude or devin")
     top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
     if top.returncode:
         die("init must run inside a git checkout")
@@ -279,7 +279,9 @@ def init(box: str, rest: list[str], lib: Path) -> int:
     if not pane:
         die("this session needs a split pane for the other agent")
 
-    if run(lib / "agmsg.py", ["register", box, "--tool", tool, "--role", box, "--cwd", str(root)], env):
+    if tool == "devin":
+        load(lib, "hub", env).register(box, tool=tool, role=box, cwd=str(root))
+    elif run(lib / "agmsg.py", ["register", box, "--tool", tool, "--role", box, "--cwd", str(root)], env):
         return 1
     print(f"mailbox: {hub}")
     print(f"{box}: {tool} on pane {mine}")
@@ -305,7 +307,7 @@ def init(box: str, rest: list[str], lib: Path) -> int:
     else:
         print(f"{PEER[box]}: {peer.get('tool')} on pane {pane}")
         if tool == "codex" and peer.get("tool") == "codex":
-            die("both agents are Codex: neither can wake the other; one side must be Claude")
+            die("both agents are Codex: neither can wake the other; one side must be Claude or Devin")
     return 0
 
 
@@ -322,7 +324,7 @@ def send(box: str, rest: list[str], lib: Path, env: dict[str, str]) -> int:
         die(f"{box} is not registered: run `agr.py --as {box} init --tool <tool>` from its pane")
 
     partner = read_pair(Path(env["AI_HUB"])).get("reviewer")
-    if box == "author" and to == "reviewer" and mine == "claude" and partner:
+    if box == "author" and to == "reviewer" and mine in ("claude", "devin") and partner:
         agw = load(lib, "agw", env)
         pane, fresh = peer_pane(agw, split=True)
         shell = wait_shell(agw, pane, FRESH_PANE_WAIT if fresh else 3.0)
@@ -345,7 +347,7 @@ def send(box: str, rest: list[str], lib: Path, env: dict[str, str]) -> int:
     extra: list[str] = []
     if theirs == "codex":
         if mine == "codex":
-            die("both agents are Codex: nobody can wake the recipient; one side must be Claude")
+            die("both agents are Codex: nobody can wake the recipient; one side must be Claude or Devin")
         extra = ["--nudge"]
     return run(lib / "agmsg.py", ["send", *rest, *extra], env)
 
@@ -365,7 +367,7 @@ def main(argv: list[str]) -> int:
         return run(lib / "wb.py", ["wait-mail", "--box", box, *rest], env)
     if command == "status":
         if tool_of(lib, env, box) == "codex":
-            die("Codex's sandbox cannot reach agwinterm; status is for a Claude pane")
+            die("Codex's sandbox cannot reach agwinterm; status is for a Claude or Devin pane")
         if not rest:
             die("status needs active|blocked|completed|idle")
         load(lib, "agw", env).set_status(rest[0], sound="--sound" in rest[1:])

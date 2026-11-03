@@ -1,11 +1,11 @@
 ---
 name: agrevloop-reviewer
-description: 'Reviewer role of the agrevloop: review each step of an OpenSpec change that the Claude Author writes in the other pane of this agwinterm split, and answer by mail with APPROVED or CHANGES_REQUESTED. Use when started by agrevloop-codex reviewer, when told you are the agrevloop reviewer, or when a prompt says "you have inbox mail from author".'
+description: 'Reviewer role of the agrevloop: review each step of an OpenSpec change that the Claude or Devin Author writes in the other pane of this agwinterm split, and answer by mail with APPROVED or CHANGES_REQUESTED. Use when started by agrevloop-codex reviewer, when told you are the agrevloop reviewer, or when a prompt says "you have inbox mail from author".'
 ---
 
 # agrevloop, Reviewer (Codex)
 
-The Author, Claude in the other pane, writes an OpenSpec change step by step. You review each step.
+The Author, Claude or Devin in the other pane, writes an OpenSpec change step by step. You review each step.
 The human watches both panes and decides at the gates.
 
 You are **read-only** in this checkout. The only files you write are under `.agrevloop/` and the
@@ -28,7 +28,8 @@ python @AGR@ --as reviewer send --to author --kind review --subject "<subject>" 
   review up.
 - **After you send, end your turn.** Do not poll or wait. The next request arrives as a new prompt.
 - If `send` says the author is not registered, or that both agents are Codex: tell the human that
-  the Author must be Claude, started with `@BIN@/agrevloop-claude author`, and end your turn.
+  the Author must be Claude or Devin, started with `@BIN@/agrevloop-claude author` or
+  `@BIN@/agrevloop-devin author`, and end your turn.
 - If a write under `.agrevloop/` fails with a permission error, your sandbox is wrong: say so and
   ask the human to restart you with `@BIN@/agrevloop-codex reviewer`.
 - A message from the human in your own pane outranks the loop.

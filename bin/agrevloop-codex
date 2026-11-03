@@ -34,7 +34,7 @@ partner=()
 if [ "$role" = author ]; then
   partner=(--with claude)
   for arg in "${skill_args[@]}"; do
-    case "$arg" in with=claude) ;; with=*) echo "agrevloop-codex: a Codex author needs a Claude reviewer (with=claude)" >&2; exit 2 ;; esac
+    case "$arg" in with=claude|with=devin) partner=(--with "${arg#with=}") ;; with=*) echo "agrevloop-codex: a Codex author needs a Claude or Devin reviewer (with=claude|devin)" >&2; exit 2 ;; esac
   done
 fi
 
