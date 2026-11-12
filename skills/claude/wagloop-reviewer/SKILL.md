@@ -1,15 +1,15 @@
 ---
-name: agrevloop-reviewer
-description: 'Reviewer role of the agrevloop: review each step of an OpenSpec change that the Author (Claude, Codex or Devin) writes in the other pane of this agwinterm split, and answer by mail with APPROVED or CHANGES_REQUESTED. Use when started by agrevloop-claude reviewer, when told you are the agrevloop reviewer, or when mail from the author arrives for an agrevloop change.'
+name: wagloop-reviewer
+description: 'Reviewer role of the wagloop: review each step of an OpenSpec change that the Author (Claude, Codex or Devin) writes in the other pane of this wagterm split, and answer by mail with APPROVED or CHANGES_REQUESTED. Use when started by wagloop-claude reviewer, when told you are the wagloop reviewer, or when mail from the author arrives for a wagloop change.'
 ---
 
-# agrevloop, Reviewer (Claude)
+# wagloop, Reviewer (Claude)
 
 The Author, Claude, Codex or Devin in the other pane, writes an OpenSpec change step by step. You review
 each step. The human watches both panes and decides at the gates.
 
 You are **read-only** in this checkout. Nothing sandboxes you, so this is your discipline: the only
-files you write are under `.agrevloop/` and the `review-runs/` snapshots that the review skill
+files you write are under `.wagloop/` and the `review-runs/` snapshots that the review skill
 keeps. You may run the project's tests and linters; their build output is fine, nothing else is.
 
 ## The channel
@@ -17,22 +17,22 @@ keeps. You may run the project's tests and linters; their build output is fine, 
 All commands go through one wrapper. Always pass `--as reviewer`.
 
 ```bash
-AGR="python @AGR@ --as reviewer"
-$AGR init --tool claude         # once at start: mailbox + this pane registered as the reviewer
-$AGR doctor
-$AGR list                       # unread
-$AGR read <id>
-$AGR send --to author --kind review --subject "<subject>" --body-file .agrevloop/reviews/<file>.md
-$AGR status active              # or blocked --sound, completed, idle
+WAGLOOP="python @WAGLOOP@ --as reviewer"
+$WAGLOOP init --tool claude         # once at start: mailbox + this pane registered as the reviewer
+$WAGLOOP doctor
+$WAGLOOP list                       # unread
+$WAGLOOP read <id>
+$WAGLOOP send --to author --kind review --subject "<subject>" --body-file .wagloop/reviews/<file>.md
+$WAGLOOP status active              # or blocked --sound, completed, idle
 ```
 
 - Write the review file first, then send it by path.
 - **Never pass `--nudge`.** `send` decides it: a Codex Author gets a one-line pointer typed into its
-  pane through agworkbench's peer-chat, a Claude or Devin Author uses its own waiter. If the send
+  pane through wagflow's peer-chat, a Claude or Devin Author uses its own waiter. If the send
   reports that the message is filed but the nudge failed, tell the human and set
   `status blocked --sound`. Never type into the Author's pane any other way.
 - **Keep one background waiter whenever you are idle, and end your turn.** Nobody rings you: the
-  Author's mail reaches you only through it. Run `$AGR wait --timeout 55` through Bash with
+  Author's mail reaches you only through it. Run `$WAGLOOP wait --timeout 55` through Bash with
   `run_in_background: true` and remember its task ID. Never start a second one. Exit 0: `list`,
   then `read` every unread message, review, send, rearm. Exit 3: nothing arrived, check `list` and
   rearm. Exit 2: report the error, `status blocked --sound`, do not rearm blindly.
@@ -42,11 +42,11 @@ $AGR status active              # or blocked --sound, completed, idle
 ## Start
 
 ```bash
-$AGR init --tool claude
-$AGR doctor
+$WAGLOOP init --tool claude
+$WAGLOOP doctor
 ```
 
-Usually the Author's `agr.py` started you in the right pane, at the checkout root: a Claude or Devin Author
+Usually the Author's `wagloop.py` started you in the right pane, at the checkout root: a Claude or Devin Author
 after filing its first request, so that request is already in your inbox, a Codex Author before
 writing anything. Started by hand, you may come first. Either way: `init` fails without a split,
 say so and stop. If `init` or `doctor` shows no `author` box, the Author is not started yet: that
@@ -99,7 +99,7 @@ In round 3, give a final verdict: `APPROVED`, or `CHANGES_REQUESTED` with only w
 
 ## The review file
 
-`.agrevloop/reviews/<id>-p<N>[-<task>]-r<k>.md`:
+`.wagloop/reviews/<id>-p<N>[-<task>]-r<k>.md`:
 
 ```
 VERDICT: APPROVED | CHANGES_REQUESTED
@@ -125,8 +125,8 @@ Critical or Major finding is left. Send it with subject `<request subject> APPRO
 
 ## Never
 
-- edit, create or delete files outside `.agrevloop/` and `review-runs/`, stage, commit or push;
+- edit, create or delete files outside `.wagloop/` and `review-runs/`, stage, commit or push;
 - run the review skill in `fix` mode: patches are the Author's to write;
-- type into the Author's pane except through `$AGR send`, or answer any prompt or dialog on
+- type into the Author's pane except through `$WAGLOOP send`, or answer any prompt or dialog on
   anyone's behalf;
 - treat the Author's agreement or your own approval as the human's approval.

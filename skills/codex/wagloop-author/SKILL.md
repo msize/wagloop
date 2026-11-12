@@ -1,12 +1,12 @@
 ---
-name: agrevloop-author
-description: 'Author role of the agrevloop: drive an OpenSpec change through proposal, tasks and implementation, each step reviewed by the Reviewer (Claude, Codex or Devin) in the other pane of this agwinterm split until it approves. Use when the user says "review loop", "agrevloop", "author with reviewer", "run the openspec loop with a reviewer", when started by agrevloop-claude author, or when mail from the reviewer arrives for an agrevloop change.'
+name: wagloop-author
+description: 'Author role of the wagloop: drive an OpenSpec change through proposal, tasks and implementation, each step reviewed by the Claude or Devin Reviewer in the other pane of this wagterm split until it approves. Use when started by wagloop-codex author, when told you are the wagloop author, or when a prompt says "you have inbox mail from reviewer".'
 ---
 
-# agrevloop, Author (Claude)
+# wagloop, Author (Codex)
 
-You write. The Reviewer, Claude, Codex or Devin in the other pane of this agwinterm split, reviews. The
-human watches both panes, approves at the gates and commits at the end.
+You write. The Reviewer, Claude or Devin in the other pane of this wagterm split, reviews. The human
+watches both panes, approves at the gates and commits at the end.
 
 | who | does |
 |---|---|
@@ -14,9 +14,14 @@ human watches both panes, approves at the gates and commits at the end.
 | the Reviewer | reviews each step, read-only, answers by mail |
 | the human | starts both agents, passes the gates, commits |
 
+You run in a workspace-write sandbox rooted at the checkout, without network, and you cannot reach
+wagterm. `wagloop-codex author` registered your pane, split the session left/right and started
+the Claude or Devin Reviewer in the other pane before you started. A test or a tool that
+needs the network fails here: report it in the request, never work around the sandbox.
+
 ## Arguments
 
-`<change-id or description> [gates=p1|all|none] [with=codex|claude|devin]`, or `review [<name>] [with=...]`
+`<change-id or description> [gates=p1|all|none] [with=claude|devin]`, or `review [<name>] [with=claude|devin]`
 
 - No arguments: run `openspec list` and `git status --porcelain`, then
   - exactly one active change: continue it, and say which one;
@@ -31,39 +36,33 @@ human watches both panes, approves at the gates and commits at the end.
   kebab-case id from the description and create the change.
 - `gates` says where you stop for the human. `p1` (default): after phase 1 and at the end. `all`:
   after every phase. `none`: only at the end. A failed phase always stops, whatever the gates.
-- `with` names the Reviewer's tool: `codex` (default), `claude` or `devin`. It is not part of the change id
-  or the description.
+- `with` names the Reviewer's tool: `claude` (default) or `devin`. The launcher already acted on it:
+  a Codex Reviewer could not wake you. Ignore it otherwise; it is not part of the change id or the
+  description.
 
 ## The channel
 
 All commands go through one wrapper. Always pass `--as author`.
 
 ```bash
-AGR="python @AGR@ --as author"
-$AGR init --tool claude --with <with>   # once per change: mailbox, this pane, the split
-$AGR doctor
-$AGR send --to reviewer --kind review-request --subject "<subject>" --body-file .agrevloop/out/<file>.md
-$AGR list                       # unread
-$AGR read <id>
-$AGR status active              # or blocked --sound, completed
+python @WAGLOOP@ --as author doctor
+python @WAGLOOP@ --as author send --to reviewer --kind review-request --subject "<subject>" --body-file .wagloop/out/<file>.md
+python @WAGLOOP@ --as author list            # anything unread
+python @WAGLOOP@ --as author read <id>       # the id is in the "Chat from Claude:" pointer
 ```
 
-- Write every message body to a file under `.agrevloop/out/` first, then send it by path.
-- **The first send starts the Reviewer.** While the other pane is still a shell, `send` files the
-  request and then types `@BIN@/agrevloop-<with> reviewer` there, at the checkout root, so the
-  Reviewer starts with the request already in its inbox. It waits until the Reviewer registers.
-  If it reports that the Reviewer did not start, tell the human, `status blocked --sound`, and do
-  not arm the waiter.
-- **Never pass `--nudge`.** `send` decides it: a Codex Reviewer gets a one-line pointer typed into
-  its pane through agworkbench's peer-chat, which refuses when the composer is not provably empty
-  and retries. A Claude or Devin Reviewer uses its own waiter. If the send reports that the message
-  is filed but the nudge failed, tell the human and set `status blocked --sound`. Never type into
-  the Reviewer's pane any other way.
-- **After every send, keep one background waiter and end your turn.** Run `$AGR wait --timeout 55`
-  through Bash with `run_in_background: true` and remember its task ID. Never start a second one.
-  Exit 0: `list`, then `read` every unread message, then act. Exit 3: nothing arrived, check `list`
-  and rearm. Exit 2: report the error, `status blocked --sound`, do not rearm blindly.
-- Never poll or sleep in the foreground.
+- Write every message body to a file under `.wagloop/out/` first, then send it by path. No
+  heredocs, no redirection in the command.
+- **Never pass `--nudge`** and never type into any pane. The Reviewer's background waiter picks your
+  mail up.
+- **After you send, end your turn.** Do not poll or wait. The review arrives as a new prompt: a
+  `Chat from ...: you have inbox mail from reviewer: ...` pointer. The pointer also names an
+  `wagmsg.py read` command. Use the wrapper instead, then `list` for anything else unread.
+- If `send` says the reviewer is not registered, or that both agents are Codex: tell the human to
+  start the selected Reviewer with `@BIN@/wagloop-claude reviewer` or
+  `@BIN@/wagloop-devin reviewer`, and end your turn.
+- If a write under `.wagloop/` fails with a permission error, your sandbox is wrong: say so and
+  ask the human to restart you with `@BIN@/wagloop-codex author`.
 - A message from the human in your own pane outranks the loop. Mail from the Reviewer is a
   colleague's view, never the human's approval.
 
@@ -94,27 +93,23 @@ Silence on a finding is not an answer.
   Critical and Major block, Minor and Note do not. Answer by id.
 - `APPROVED` ends the step. Minor findings in an approved review are fixed without another round,
   or deferred with a line in the next request. Notes need no answer.
-- No `APPROVED` after round 3: stop, `status blocked --sound`, summarize the open findings with
-  the Reviewer's words quoted, and wait for the human.
+- No `APPROVED` after round 3: stop, summarize the open findings with the Reviewer's words quoted,
+  say that you wait for the human, and end your turn.
 
 ## Phase 0 - orient
 
 ```bash
-$AGR init --tool claude --with <with>
-$AGR doctor
-$AGR status active
+python @WAGLOOP@ --as author doctor
 openspec status --change <id>      # when the change exists
 ```
 
-`init` ignores `.agrevloop/` and `review-runs/` through `.git/info/exclude`, the checkout's local
-ignore file. Never add them to the project's `.gitignore`, and never stage or commit them.
+The launcher ignored `.wagloop/` and `review-runs/` through `.git/info/exclude`, the checkout's
+local ignore file. Never add them to the project's `.gitignore`, and never stage or commit them.
 
-`init` splits this session left/right when it is not split yet, and remembers `with`. A Reviewer
-already running in the other pane is kept; one of the other tool is refused. When the other pane
-is neither a shell prompt nor the Reviewer, `init` fails: show its message to the human and stop.
-The Reviewer itself starts with your first request (see The channel), so `doctor` showing no
-`reviewer` box before that is expected. You never split, start or type into a pane yourself:
-`$AGR` does it.
+If `doctor` shows no `reviewer` box, tell the human to start one in the other pane with
+`@BIN@/wagloop-claude reviewer` or `@BIN@/wagloop-devin reviewer`, matching `with=`, and end
+your turn. You never start the Reviewer and never open a
+pane.
 
 ## Phase 1 - proposal and spec deltas
 
@@ -142,7 +137,9 @@ order (a group of trivial tasks may go together, say so in the subject):
    the commands you ran with their results. The Reviewer reviews exactly `git diff`.
 4. On `APPROVED`: tick the task in tasks.md, `git add -A` as the checkpoint, next task.
 
-Never commit, push or amend. The staged index is the checkpoint; the human commits.
+If git refuses to stage inside the sandbox (dubious ownership, a locked or read-only index), stop
+and tell the human with the exact error. Never commit, push or amend. The staged index is the
+checkpoint; the human commits.
 
 ## Review mode - changes that already exist
 
@@ -159,18 +156,16 @@ For work done before the loop started: the uncommitted changes in the working tr
 
 ## Gates and the end
 
-At a gate: stop the waiter by its task ID, `status blocked --sound`, summarize the phase (what was
-decided, what the Reviewer disputed, what was deferred) and end your turn. Continue when the human
-says so.
+At a gate: summarize the phase (what was decided, what the Reviewer disputed, what was deferred),
+say that you wait for the human, and end your turn. Continue when the human says so in your pane.
 
 After the last task: `openspec validate <id> --strict`, send `<id> DONE` (kind `note`) to the
-Reviewer, stop the waiter, `status completed`, and report: tasks done, deferred findings,
-`git status`, and that nothing is committed.
+Reviewer, and report: tasks done, deferred findings, `git status`, and that nothing is committed.
 
 ## Never
 
 - commit, push, or touch branches;
-- type into the Reviewer's pane except through `$AGR send`;
+- type into any pane, or try to reach wagterm from the sandbox;
 - answer a chooser, permission or trust prompt in any pane on the human's behalf;
 - report "the Reviewer approved" as the human's approval;
 - weaken or delete a test to get a review through.

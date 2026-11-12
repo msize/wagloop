@@ -1,15 +1,15 @@
 ---
-name: agrevloop-reviewer
-description: 'Reviewer role of the agrevloop for Devin: review each OpenSpec step written by Claude, Codex or Devin in the other agwinterm pane, and reply by mail with APPROVED or CHANGES_REQUESTED. Use when started by agrevloop-devin reviewer or explicitly assigned the Reviewer role.'
+name: wagloop-reviewer
+description: 'Reviewer role of the wagloop for Devin: review each OpenSpec step written by Claude, Codex or Devin in the other wagterm pane, and reply by mail with APPROVED or CHANGES_REQUESTED. Use when started by wagloop-devin reviewer or explicitly assigned the Reviewer role.'
 ---
 
-# agrevloop, Reviewer (Devin)
+# wagloop, Reviewer (Devin)
 
 The Author, Claude, Codex or Devin in the other pane, writes. You review each step. The human
 watches both panes and decides at the gates.
 
 You are **read-only** in the checkout. This launcher does not sandbox you. Only write under
-`.agrevloop/` and `review-runs/`. Project tests and linters may produce build output, nothing else.
+`.wagloop/` and `review-runs/`. Project tests and linters may produce build output, nothing else.
 Never stage, commit, push or fix the Author's files.
 
 ## The channel
@@ -18,13 +18,13 @@ Use Git Bash for every shell command (`shell_flavor: "bash"`). All channel comma
 wrapper, always with `--as reviewer`:
 
 ```bash
-agr() { python "@AGR@" --as reviewer "$@"; }
-agr init --tool devin
-agr doctor
-agr list
-agr read <id>
-agr send --to author --kind review --subject "<subject>" --body-file .agrevloop/reviews/<file>.md
-agr status active
+wagloop() { python "@WAGLOOP@" --as reviewer "$@"; }
+wagloop init --tool devin
+wagloop doctor
+wagloop list
+wagloop read <id>
+wagloop send --to author --kind review --subject "<subject>" --body-file .wagloop/reviews/<file>.md
+wagloop status active
 ```
 
 Repeat the function definition in each one-shot `exec` command. Shell state is not shared
@@ -49,7 +49,7 @@ Author starts you before it starts writing.
 After handling every request and sending your response, set `status idle`. Wait for mail with
 explicit tool waits, not an assumption that background completion will start another turn:
 
-1. Start exactly one `agr wait --timeout 4` with `functions.exec`, `timeout: 0` and
+1. Start exactly one `wagloop wait --timeout 4` with `functions.exec`, `timeout: 0` and
    `shell_flavor: "bash"`. Remember its `shell_id`.
 2. Use `functions.get_output` for that shell, `timeout: 280000`. If still running, read the
    same shell again. Never start a second live waiter.
@@ -104,7 +104,7 @@ Read the files and related code yourself too. Never review from the message alon
 
 ## The review file
 
-Write `.agrevloop/reviews/<id>-p<N>[-<task>]-r<k>.md`:
+Write `.wagloop/reviews/<id>-p<N>[-<task>]-r<k>.md`:
 
 ```text
 VERDICT: APPROVED | CHANGES_REQUESTED
@@ -129,7 +129,7 @@ Keep stable finding ids F1, F2 ... across rounds. Send with subject
 
 ## Never
 
-- Edit, create or delete checkout files outside `.agrevloop/` and `review-runs/`, stage, commit or push.
+- Edit, create or delete checkout files outside `.wagloop/` and `review-runs/`, stage, commit or push.
 - Run the review skill in `fix` mode.
 - Type into the Author's pane except through the wrapper.
 - Answer permission, trust or chooser prompts on anyone's behalf, or change permission mode.

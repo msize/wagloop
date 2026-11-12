@@ -1,9 +1,9 @@
 ---
-name: agrevloop-author
-description: 'Author role of the agrevloop for Devin: drive an OpenSpec change through proposal, tasks and implementation, reviewed by Claude, Codex or Devin in the other agwinterm pane. Use when started by agrevloop-devin author or explicitly assigned the Author role.'
+name: wagloop-author
+description: 'Author role of the wagloop for Devin: drive an OpenSpec change through proposal, tasks and implementation, reviewed by Claude, Codex or Devin in the other wagterm pane. Use when started by wagloop-devin author or explicitly assigned the Author role.'
 ---
 
-# agrevloop, Author (Devin)
+# wagloop, Author (Devin)
 
 You write. The Reviewer, Claude, Codex or Devin in the other pane, reviews. The human passes the
 gates and commits at the end. You own proposal, spec deltas, design, tasks, implementation,
@@ -31,13 +31,13 @@ Use Git Bash for every shell command (`shell_flavor: "bash"`). All channel comma
 wrapper, always with `--as author`:
 
 ```bash
-agr() { python "@AGR@" --as author "$@"; }
-agr init --tool devin --with <with>
-agr doctor
-agr send --to reviewer --kind review-request --subject "<subject>" --body-file .agrevloop/out/<file>.md
-agr list
-agr read <id>
-agr status active
+wagloop() { python "@WAGLOOP@" --as author "$@"; }
+wagloop init --tool devin --with <with>
+wagloop doctor
+wagloop send --to reviewer --kind review-request --subject "<subject>" --body-file .wagloop/out/<file>.md
+wagloop list
+wagloop read <id>
+wagloop status active
 ```
 
 Repeat the function definition in each one-shot `exec` command. Shell state is not shared
@@ -45,8 +45,8 @@ between those calls. The quoted path supports checkout paths containing spaces.
 
 - The launcher already initialized the pair. From a running session, initialize it once yourself.
   Do not change the selected harness during a change.
-- Write each message body under `.agrevloop/out/` before sending it by path.
-- The first send files the request, then starts `@BIN@/agrevloop-<with> reviewer` in the other pane
+- Write each message body under `.wagloop/out/` before sending it by path.
+- The first send files the request, then starts `@BIN@/wagloop-<with> reviewer` in the other pane
   at the checkout root. Wait for registration. If startup fails, tell the human, set
   `status blocked --sound`, and stop. Never start a Reviewer or type into its pane yourself.
 - Never pass `--nudge`. The wrapper rings Codex through fail-closed peer-chat. Claude and Devin
@@ -61,7 +61,7 @@ background shell completion will start a new turn.
 
 After every send:
 
-1. Start exactly one `agr wait --timeout 4` with `functions.exec`, `timeout: 0` and
+1. Start exactly one `wagloop wait --timeout 4` with `functions.exec`, `timeout: 0` and
    `shell_flavor: "bash"`. Remember its `shell_id`.
 2. Use `functions.get_output` for that shell, `timeout: 280000`. If it is still running, read
    the same shell again. Never start another waiter while it is running.
@@ -100,7 +100,7 @@ The launcher's `init` creates the mailbox and left/right split. From a running s
 `init --tool devin --with <with>` first. `init` refuses a pane occupied by something other than
 an idle shell or the selected Reviewer. Report the failure and stop, never bypass it.
 
-`init` ignores `.agrevloop/` and `review-runs/` through `.git/info/exclude`. Never add them to
+`init` ignores `.wagloop/` and `review-runs/` through `.git/info/exclude`. Never add them to
 `.gitignore`, stage them or commit them. No Reviewer registration before the first send is normal.
 
 ## Phase 1 - proposal and spec deltas

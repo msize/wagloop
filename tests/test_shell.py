@@ -20,12 +20,12 @@ class ShellTests(unittest.TestCase):
         self.checkout.mkdir()
         self.home = self.root / "home"
         self.home.mkdir()
-        self.workbench = self.root / "agworkbench"
-        (self.workbench / "lib").mkdir(parents=True)
-        (self.workbench / "lib/agmsg.py").touch()
+        self.flow = self.root / "wagflow"
+        (self.flow / "lib").mkdir(parents=True)
+        (self.flow / "lib/wagmsg.py").touch()
         self.stubs = self.root / "stubs"
         self.stubs.mkdir()
-        self.env = dict(os.environ, HOME=self.home.as_posix(), AGWORKBENCH=self.workbench.as_posix(),
+        self.env = dict(os.environ, HOME=self.home.as_posix(), WAGFLOW=self.flow.as_posix(),
                         TEST_BIN=self.stubs.as_posix(), TEST_ROOT=self.checkout.as_posix(),
                         TEST_LOG=self.root.as_posix(), CODEX_REVIEW_SKILL="$plugin:review",
                         CLAUDE_REVIEW_SKILL="/plugin:review", DEVIN_REVIEW_SKILL="review")
@@ -49,12 +49,12 @@ class ShellTests(unittest.TestCase):
         return (self.root / f"{tool}.args").read_bytes().decode("utf-8").rstrip("\0").split("\0")
 
     def install_devin_skill(self, role):
-        target = self.home / f".config/devin/skills/agrevloop-{role}/SKILL.md"
+        target = self.home / f".config/devin/skills/wagloop-{role}/SKILL.md"
         target.parent.mkdir(parents=True)
         target.write_text("test skill", encoding="utf-8")
 
     def test_scripts_parse(self):
-        for script in (ROOT / "install.sh", *sorted((ROOT / "bin").glob("agrevloop-*"))):
+        for script in (ROOT / "install.sh", *sorted((ROOT / "bin").glob("wagloop-*"))):
             with self.subTest(script=script.name):
                 result = subprocess.run([BASH, "-n", str(script)], capture_output=True, text=True,
                                         encoding="utf-8", timeout=30)
@@ -62,7 +62,7 @@ class ShellTests(unittest.TestCase):
 
     def test_devin_author_defaults_and_passthrough(self):
         self.install_devin_skill("author")
-        result = self.run_script(ROOT / "bin/agrevloop-devin", "author", "add retry", "--",
+        result = self.run_script(ROOT / "bin/wagloop-devin", "author", "add retry", "--",
                                  "--model", "test-model")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.arguments("python")[-7:],
@@ -70,12 +70,12 @@ class ShellTests(unittest.TestCase):
         args = self.arguments("devin")
         self.assertEqual(args[:3], ["--model", "test-model", "--"])
         self.assertIn("add retry", args[-1])
-        self.assertIn(".config/devin/skills/agrevloop-author/SKILL.md", args[-1])
+        self.assertIn(".config/devin/skills/wagloop-author/SKILL.md", args[-1])
         self.assertFalse(any("permission" in arg or "sandbox" in arg for arg in args[:-1]))
 
     def test_devin_reviewer(self):
         self.install_devin_skill("reviewer")
-        result = self.run_script(ROOT / "bin/agrevloop-devin", "reviewer")
+        result = self.run_script(ROOT / "bin/wagloop-devin", "reviewer")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.arguments("python")[-5:], ["--as", "reviewer", "init", "--tool", "devin"])
         self.assertIn("unread mail", self.arguments("devin")[-1])
@@ -84,14 +84,14 @@ class ShellTests(unittest.TestCase):
         self.install_devin_skill("author")
         for partner in ("claude", "codex", "devin"):
             with self.subTest(partner=partner):
-                result = self.run_script(ROOT / "bin/agrevloop-devin", "author", f"with={partner}")
+                result = self.run_script(ROOT / "bin/wagloop-devin", "author", f"with={partner}")
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(self.arguments("python")[-2:], ["--with", partner])
 
     def test_existing_launchers_accept_devin(self):
         for tool in ("claude", "codex"):
             with self.subTest(tool=tool):
-                result = self.run_script(ROOT / f"bin/agrevloop-{tool}", "author", "with=devin")
+                result = self.run_script(ROOT / f"bin/wagloop-{tool}", "author", "with=devin")
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(self.arguments("python")[-2:], ["--with", "devin"])
                 if tool == "codex":
@@ -100,17 +100,36 @@ class ShellTests(unittest.TestCase):
                     self.assertIn("never", args)
                     self.assertIn("sandbox_workspace_write.network_access=false", args)
 
+    def test_claude_skill_and_wrapper_names(self):
+        for role in ("author", "reviewer"):
+            with self.subTest(role=role):
+                result = self.run_script(ROOT / "bin/wagloop-claude", role, "--", "--model", "test")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertTrue(self.arguments("python")[0].endswith("/wagloop.py"))
+                self.assertEqual(self.arguments("claude"), ["--model", "test", f"/wagloop-{role}"])
+
+    def test_codex_skill_and_environment_names(self):
+        for role in ("author", "reviewer"):
+            with self.subTest(role=role):
+                result = self.run_script(ROOT / "bin/wagloop-codex", role)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertTrue(self.arguments("python")[0].endswith("/wagloop.py"))
+                args = self.arguments("codex")
+                self.assertIn(f"wagloop-{role} skill", args[-1])
+                self.assertIn(f"shell_environment_policy.set.AI_HUB='{self.checkout.as_posix()}/.wagloop'", args)
+                self.assertIn(f"shell_environment_policy.set.WAGFLOW='{self.flow.as_posix()}'", args)
+
     def test_invalid_arguments_do_not_initialize(self):
         self.install_devin_skill("author")
         self.install_devin_skill("reviewer")
         for args in ((), ("unknown",), ("author", "with=invalid"), ("reviewer", "extra")):
             with self.subTest(args=args):
-                result = self.run_script(ROOT / "bin/agrevloop-devin", *args)
+                result = self.run_script(ROOT / "bin/wagloop-devin", *args)
                 self.assertEqual(result.returncode, 2)
                 self.assertFalse((self.root / "python.args").exists())
 
     def test_missing_skill_does_not_initialize(self):
-        result = self.run_script(ROOT / "bin/agrevloop-devin", "author")
+        result = self.run_script(ROOT / "bin/wagloop-devin", "author")
         self.assertEqual(result.returncode, 2)
         self.assertIn("run install.sh first", result.stderr)
         self.assertFalse((self.root / "python.args").exists())
@@ -118,7 +137,7 @@ class ShellTests(unittest.TestCase):
     def test_init_failure_does_not_launch_devin(self):
         self.install_devin_skill("author")
         self.stub("python", "exit 7")
-        result = self.run_script(ROOT / "bin/agrevloop-devin", "author")
+        result = self.run_script(ROOT / "bin/wagloop-devin", "author")
         self.assertEqual(result.returncode, 7)
         self.assertFalse((self.root / "devin.args").exists())
 
@@ -134,13 +153,15 @@ class ShellTests(unittest.TestCase):
                                      ("devin", ".config/devin", "review")):
             for role in ("author", "reviewer"):
                 with self.subTest(tool=tool, role=role):
-                    text = (self.home / folder / f"skills/agrevloop-{role}/SKILL.md").read_text(encoding="utf-8")
-                    self.assertNotIn("@AGR@", text)
+                    text = (self.home / folder / f"skills/wagloop-{role}/SKILL.md").read_text(encoding="utf-8")
+                    self.assertNotIn("@WAGLOOP@", text)
                     self.assertNotIn("@BIN@", text)
                     self.assertNotIn("@REVIEW_SKILL@", text)
+                    self.assertIn(f"name: wagloop-{role}", text)
+                    self.assertIn("bin/wagloop.py", text)
                     if role == "reviewer":
                         self.assertIn(review, text)
-        self.assertIn("agrevloop-devin", result.stdout)
+        self.assertIn("wagloop-devin", result.stdout)
 
     def test_installer_requires_devin_review_skill_before_writes(self):
         del self.env["DEVIN_REVIEW_SKILL"]

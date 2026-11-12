@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
-"""agr - the agrevloop mailbox for one git checkout.
+"""wagloop - the wagloop mailbox for one git checkout.
 
-A thin front for agworkbench's vendored transport (agmsg, peerchat, wb.py wait-mail). It pins
-the mailbox to <checkout>/.agrevloop/ and the box to the caller's role, so neither agent depends
+A thin front for wagflow's vendored transport (wagmsg, peerchat, wb.py wait-mail). It pins
+the mailbox to <checkout>/.wagloop/ and the box to the caller's role, so neither agent depends
 on environment variables surviving into its tool shell.
 
 Either role can be played by Claude Code or by Codex, but not both by Codex: Codex's sandbox
-cannot reach agwinterm, so it can neither ring a pane nor be woken by anything but a ring.
+cannot reach wagterm, so it can neither ring a pane nor be woken by anything but a ring.
 
-  agr.py --as author init --tool claude --with codex   # mailbox, this pane, a vertical split
-  agr.py --as reviewer init --tool codex               # register the other pane (the launchers do)
-  agr.py --as author doctor
-  agr.py --as author send --to reviewer --kind review-request --subject "..." --body-file F
-  agr.py --as reviewer send --to author --kind review --subject "..." --body-file F
-  agr.py --as reviewer read <id>
-  agr.py --as author list
-  agr.py --as author wait [--timeout MIN]    # exit 0 on mail, 3 on timeout, 2 on bad setup
-  agr.py --as author status active|blocked|completed|idle [--sound]
+  wagloop.py --as author init --tool claude --with codex   # mailbox, this pane, a vertical split
+  wagloop.py --as reviewer init --tool codex               # register the other pane (the launchers do)
+  wagloop.py --as author doctor
+  wagloop.py --as author send --to reviewer --kind review-request --subject "..." --body-file F
+  wagloop.py --as reviewer send --to author --kind review --subject "..." --body-file F
+  wagloop.py --as reviewer read <id>
+  wagloop.py --as author list
+  wagloop.py --as author wait [--timeout MIN]    # exit 0 on mail, 3 on timeout, 2 on bad setup
+  wagloop.py --as author status active|blocked|completed|idle [--sound]
 
 `init --with` makes sure the author's session is split left/right and remembers which tool
 reviews. The reviewer is started in the other pane, at the checkout root, by the launcher next to
@@ -24,7 +24,7 @@ this file: by the author's first `send` when the author is Claude, so it starts 
 already in its inbox, and by `init` itself when the author is Codex, whose sandbox could not.
 
 `send` rings the recipient's pane when the recipient is Codex, and leaves a Claude recipient to
-its own background waiter. Any other subcommand is passed to agmsg.py unchanged.
+its own background waiter. Any other subcommand is passed to wagmsg.py unchanged.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ import sys
 import time
 from pathlib import Path
 
-HUB_DIR = ".agrevloop"
+HUB_DIR = ".wagloop"
 PAIR_FILE = "pair.json"
 # The review skill persists its runs in review-runs/ at the checkout root for `incremental`.
 EXCLUDED = (f"/{HUB_DIR}/", "/review-runs/")
@@ -54,15 +54,15 @@ REGISTER_WAIT = 60.0
 
 
 def die(message: str, code: int = 2) -> None:
-    print(f"agr: {message}", file=sys.stderr)
+    print(f"wagloop: {message}", file=sys.stderr)
     raise SystemExit(code)
 
 
-def workbench_lib() -> Path:
-    root = os.environ.get("AGWORKBENCH") or str(Path(__file__).resolve().parents[2] / "agworkbench")
+def flow_lib() -> Path:
+    root = os.environ.get("WAGFLOW") or str(Path(__file__).resolve().parents[2] / "wagflow")
     lib = Path(root) / "lib"
-    if not (lib / "agmsg.py").is_file():
-        die(f"agworkbench not found at {root}; clone yeroo/agworkbench there or set AGWORKBENCH")
+    if not (lib / "wagmsg.py").is_file():
+        die(f"wagflow not found at {root}; clone msize/wagflow there or set WAGFLOW")
     return lib
 
 
@@ -80,19 +80,19 @@ def hub_dir() -> Path:
         return Path(os.environ["AI_HUB"]).resolve()
     root = find_up(Path.cwd(), HUB_DIR)
     if root is None:
-        die(f"no {HUB_DIR}/ above {Path.cwd()}; start both agents with agrevloop-claude or "
-            f"agrevloop-codex or agrevloop-devin, or run `agr.py --as <role> init --tool <tool>` first")
+        die(f"no {HUB_DIR}/ above {Path.cwd()}; start both agents with wagloop-claude or "
+            f"wagloop-codex or wagloop-devin, or run `wagloop.py --as <role> init --tool <tool>` first")
     return root / HUB_DIR
 
 
 def env_for(box: str, hub: Path, lib: Path) -> dict[str, str]:
     env = dict(os.environ)
-    env.update({"AI_HUB": str(hub), "AI_BOX": box, "AGWORKBENCH": str(lib.parent)})
+    env.update({"AI_HUB": str(hub), "AI_BOX": box, "WAGFLOW": str(lib.parent)})
     return env
 
 
 def load(lib: Path, name: str, env: dict[str, str]):
-    """Import an agworkbench module with this mailbox and box in the environment."""
+    """Import a wagflow module with this mailbox and box in the environment."""
     os.environ.update(env)
     if str(lib) not in sys.path:
         sys.path.insert(0, str(lib))
@@ -112,34 +112,34 @@ def tool_of(lib: Path, env: dict[str, str], box: str) -> str | None:
 
 # --- the split ------------------------------------------------------------------------------
 
-def ctl(agw, *args: str):
-    """One agwintermctl call through the CLI, for verbs agw has no wrapper for."""
-    done = subprocess.run([agw.ctl_path(), *args, "--json"], capture_output=True, text=True,
+def ctl(wag, *args: str):
+    """One wagtermctl call through the CLI, for verbs wag has no wrapper for."""
+    done = subprocess.run([wag.ctl_path(), *args, "--json"], capture_output=True, text=True,
                           encoding="utf-8", errors="replace", timeout=15)
     try:
         envelope = json.loads(done.stdout)
     except json.JSONDecodeError:
-        die(f"agwintermctl {' '.join(args)}: {(done.stderr or done.stdout).strip()}")
+        die(f"wagtermctl {' '.join(args)}: {(done.stderr or done.stdout).strip()}")
     if not envelope.get("ok"):
-        die(f"agwintermctl {' '.join(args)}: {envelope.get('error')}")
+        die(f"wagtermctl {' '.join(args)}: {envelope.get('error')}")
     return envelope.get("result")
 
 
-def own_session(agw) -> tuple[str, dict]:
-    mine = agw.my_pane()
+def own_session(wag) -> tuple[str, dict]:
+    mine = wag.my_pane()
     if not mine:
-        die("no AGWINTERM_PANE_ID: run this from an agwinterm pane")
-    located = agw.find_pane(mine, agw.tree())
+        die("no WAGTERM_PANE_ID: run this from a wagterm pane")
+    located = wag.find_pane(mine, wag.tree())
     if not located:
-        die(f"own pane {mine} is not in the agwinterm tree")
+        die(f"own pane {mine} is not in the wagterm tree")
     return mine, located[1]
 
 
-def peer_pane(agw, *, split: bool) -> tuple[str | None, bool]:
+def peer_pane(wag, *, split: bool) -> tuple[str | None, bool]:
     """The other pane of this session, and whether it was just made. With `split`, a one-pane
     session is split left/right and a top/bottom split is turned left/right."""
-    mine, session = own_session(agw)
-    panes = agw.panes_of(session)
+    mine, session = own_session(wag)
+    panes = wag.panes_of(session)
     others = [pane for pane in panes if pane != mine]
     if len(others) > 1:
         die("this session has more than two panes")
@@ -147,18 +147,18 @@ def peer_pane(agw, *, split: bool) -> tuple[str | None, bool]:
         return (others[0] if others else None), False
     if others:
         if session.get("axis", "vertical") != "vertical":
-            ctl(agw, "session", "split", "on", "--axis", "vertical", "--target", mine)
+            ctl(wag, "session", "split", "on", "--axis", "vertical", "--target", mine)
         return others[0], False
-    ctl(agw, "session", "split", "on", "--axis", "vertical", "--target", mine)
+    ctl(wag, "session", "split", "on", "--axis", "vertical", "--target", mine)
     for _ in range(30):
         time.sleep(0.3)
-        session = own_session(agw)[1]
-        panes = agw.panes_of(session)
+        session = own_session(wag)[1]
+        panes = wag.panes_of(session)
         others = [pane for pane in panes if pane != mine]
         if others:
             # The split takes the keyboard focus; the human was typing in this pane.
             if session.get("active") and session.get("focusedPane") != panes.index(mine):
-                ctl(agw, "session", "focus", "other")
+                ctl(wag, "session", "focus", "other")
             return others[0], True
     die("the split did not appear")
     return None, False
@@ -182,10 +182,10 @@ def shell_of(text: str) -> str | None:
     return None
 
 
-def wait_shell(agw, pane: str, seconds: float) -> str | None:
+def wait_shell(wag, pane: str, seconds: float) -> str | None:
     deadline = time.monotonic() + seconds
     while True:
-        shell = shell_of(agw.pane_text(pane))
+        shell = shell_of(wag.pane_text(pane))
         if shell or time.monotonic() >= deadline:
             return shell
         time.sleep(0.3)
@@ -199,18 +199,18 @@ def posix(path: Path | str) -> str:
 
 def git_bash() -> str:
     """Git for Windows' bash.exe, the one that sets up its own PATH: <git root>/bin/bash.exe."""
-    explicit = os.environ.get("AGREVLOOP_BASH")
+    explicit = os.environ.get("WAGLOOP_BASH")
     if explicit:
         return explicit
     exec_path = subprocess.run(["git", "--exec-path"], capture_output=True, text=True).stdout.strip()
     candidate = Path(exec_path).parents[2] / "bin" / "bash.exe" if exec_path else None
     if not candidate or not candidate.is_file():
-        die("cannot find Git Bash; set AGREVLOOP_BASH to its bash.exe")
+        die("cannot find Git Bash; set WAGLOOP_BASH to its bash.exe")
     return str(candidate)
 
 
 def start_command(tool: str, root: Path, shell: str) -> str:
-    inner = f"cd '{posix(root)}' && '{posix(BIN / f'agrevloop-{tool}')}' reviewer"
+    inner = f"cd '{posix(root)}' && '{posix(BIN / f'wagloop-{tool}')}' reviewer"
     if "'" in str(root) + str(BIN):
         die("a path with a single quote cannot be typed into a pane")
     if shell == "bash":
@@ -219,12 +219,12 @@ def start_command(tool: str, root: Path, shell: str) -> str:
     return f"& '{bash}' -lc \"{inner}\"" if shell == "powershell" else f"\"{bash}\" -lc \"{inner}\""
 
 
-def start_reviewer(lib: Path, env: dict[str, str], agw, pane: str, tool: str, root: Path,
+def start_reviewer(lib: Path, env: dict[str, str], wag, pane: str, tool: str, root: Path,
                    shell: str) -> None:
     """Type the reviewer launcher into the other pane and wait until it has registered."""
     hub = load(lib, "hub", env)
     before = hub.now_iso()
-    agw.type_into(pane, start_command(tool, root, shell) + "\n")
+    wag.type_into(pane, start_command(tool, root, shell) + "\n")
     print(f"reviewer: starting {tool} in pane {pane}")
     deadline = time.monotonic() + REGISTER_WAIT
     while time.monotonic() < deadline:
@@ -250,8 +250,8 @@ def init(box: str, rest: list[str], lib: Path) -> int:
     tool, partner = options.get("--tool"), options.get("--with")
     if len(rest) % 2 or set(options) - {"--tool", "--with"} or tool not in TOOLS or \
             (partner is not None and (box != "author" or partner not in TOOLS)):
-        die("usage: agr.py --as author init --tool claude|codex|devin [--with claude|codex|devin]\n"
-            "       agr.py --as reviewer init --tool claude|codex|devin")
+        die("usage: wagloop.py --as author init --tool claude|codex|devin [--with claude|codex|devin]\n"
+            "       wagloop.py --as reviewer init --tool claude|codex|devin")
     if tool == "codex" and partner == "codex":
         die("both agents would be Codex: neither could wake the other; use --with claude or devin")
     top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
@@ -273,31 +273,31 @@ def init(box: str, rest: list[str], lib: Path) -> int:
                 out.write("".join(f"{entry}\n" for entry in missing))
 
     env = env_for(box, hub, lib)
-    agw = load(lib, "agw", env)
-    mine = own_session(agw)[0]
-    pane, fresh = peer_pane(agw, split=partner is not None)
+    wag = load(lib, "wag", env)
+    mine = own_session(wag)[0]
+    pane, fresh = peer_pane(wag, split=partner is not None)
     if not pane:
         die("this session needs a split pane for the other agent")
 
     if tool == "devin":
         load(lib, "hub", env).register(box, tool=tool, role=box, cwd=str(root))
-    elif run(lib / "agmsg.py", ["register", box, "--tool", tool, "--role", box, "--cwd", str(root)], env):
+    elif run(lib / "wagmsg.py", ["register", box, "--tool", tool, "--role", box, "--cwd", str(root)], env):
         return 1
     print(f"mailbox: {hub}")
     print(f"{box}: {tool} on pane {mine}")
     peer = load(lib, "hub", env).lookup(PEER[box]) or {}
     if partner:
         (hub / PAIR_FILE).write_text(json.dumps({"reviewer": partner}), encoding="utf-8")
-        shell = wait_shell(agw, pane, FRESH_PANE_WAIT if fresh else 3.0)
+        shell = wait_shell(wag, pane, FRESH_PANE_WAIT if fresh else 3.0)
         if shell:
             if tool == "codex":
-                start_reviewer(lib, env, agw, pane, partner, root, shell)
+                start_reviewer(lib, env, wag, pane, partner, root, shell)
             else:
                 print(f"reviewer: {partner} starts in pane {pane} with the first request")
             return 0
         if peer.get("pane") != pane:
             die(f"pane {pane} is neither a shell prompt nor the reviewer; leave it at a shell prompt "
-                f"or start the reviewer there: {posix(BIN / f'agrevloop-{partner}')} reviewer")
+                f"or start the reviewer there: {posix(BIN / f'wagloop-{partner}')} reviewer")
         if peer.get("tool") != partner:
             die(f"pane {pane} already runs a {peer.get('tool')} reviewer, not {partner}")
     if not peer:
@@ -315,32 +315,32 @@ def send(box: str, rest: list[str], lib: Path, env: dict[str, str]) -> int:
     """File the message, and ring the recipient when it has no waiter of its own. A Claude author
     whose reviewer pane is still a shell starts the reviewer after filing, so it finds the mail."""
     if "--nudge" in rest:
-        die("agr decides the ring itself: drop --nudge")
+        die("wagloop decides the ring itself: drop --nudge")
     if "--to" not in rest or rest.index("--to") + 1 >= len(rest):
         die("send needs --to author|reviewer")
     to = rest[rest.index("--to") + 1]
     mine, theirs = tool_of(lib, env, box), tool_of(lib, env, to)
     if not mine:
-        die(f"{box} is not registered: run `agr.py --as {box} init --tool <tool>` from its pane")
+        die(f"{box} is not registered: run `wagloop.py --as {box} init --tool <tool>` from its pane")
 
     partner = read_pair(Path(env["AI_HUB"])).get("reviewer")
     if box == "author" and to == "reviewer" and mine in ("claude", "devin") and partner:
-        agw = load(lib, "agw", env)
-        pane, fresh = peer_pane(agw, split=True)
-        shell = wait_shell(agw, pane, FRESH_PANE_WAIT if fresh else 3.0)
+        wag = load(lib, "wag", env)
+        pane, fresh = peer_pane(wag, split=True)
+        shell = wait_shell(wag, pane, FRESH_PANE_WAIT if fresh else 3.0)
         if shell:
-            # Filed before the reviewer registers: agmsg's warning about that is expected here.
-            filed = subprocess.run([sys.executable, str(lib / "agmsg.py"), "send", *rest, "--force"],
+            # Filed before the reviewer registers: wagmsg's warning about that is expected here.
+            filed = subprocess.run([sys.executable, str(lib / "wagmsg.py"), "send", *rest, "--force"],
                                    env=env, stderr=subprocess.PIPE, text=True)
             sys.stderr.write("".join(line for line in filed.stderr.splitlines(True)
                                      if "is not a registered box" not in line))
             if filed.returncode:
                 return 1
-            start_reviewer(lib, env, agw, pane, partner, Path(env["AI_HUB"]).parent, shell)
+            start_reviewer(lib, env, wag, pane, partner, Path(env["AI_HUB"]).parent, shell)
             return 0
         if (load(lib, "hub", env).lookup(to) or {}).get("pane") != pane:
             die(f"pane {pane} is neither a shell prompt nor the reviewer; leave it at a shell prompt "
-                f"or start the reviewer there: {posix(BIN / f'agrevloop-{partner}')} reviewer")
+                f"or start the reviewer there: {posix(BIN / f'wagloop-{partner}')} reviewer")
 
     if not theirs:
         die(f"{to} is not registered: ask the human to start it in the other pane")
@@ -349,14 +349,14 @@ def send(box: str, rest: list[str], lib: Path, env: dict[str, str]) -> int:
         if mine == "codex":
             die("both agents are Codex: nobody can wake the recipient; one side must be Claude or Devin")
         extra = ["--nudge"]
-    return run(lib / "agmsg.py", ["send", *rest, *extra], env)
+    return run(lib / "wagmsg.py", ["send", *rest, *extra], env)
 
 
 def main(argv: list[str]) -> int:
     if len(argv) < 3 or argv[0] != "--as" or argv[1] not in PEER:
-        die("usage: agr.py --as author|reviewer <command> [args]")
+        die("usage: wagloop.py --as author|reviewer <command> [args]")
     box, command, rest = argv[1], argv[2], argv[3:]
-    lib = workbench_lib()
+    lib = flow_lib()
 
     if command == "init":
         return init(box, rest, lib)
@@ -367,15 +367,15 @@ def main(argv: list[str]) -> int:
         return run(lib / "wb.py", ["wait-mail", "--box", box, *rest], env)
     if command == "status":
         if tool_of(lib, env, box) == "codex":
-            die("Codex's sandbox cannot reach agwinterm; status is for a Claude or Devin pane")
+            die("Codex's sandbox cannot reach wagterm; status is for a Claude or Devin pane")
         if not rest:
             die("status needs active|blocked|completed|idle")
-        load(lib, "agw", env).set_status(rest[0], sound="--sound" in rest[1:])
+        load(lib, "wag", env).set_status(rest[0], sound="--sound" in rest[1:])
         return 0
     if command == "send":
         return send(box, rest, lib, env)
     extra = ["--box", box] if command in ("list", "read", "archive") and "--box" not in rest else []
-    return run(lib / "agmsg.py", [command, *rest, *extra], env)
+    return run(lib / "wagmsg.py", [command, *rest, *extra], env)
 
 
 if __name__ == "__main__":
