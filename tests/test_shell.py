@@ -20,9 +20,18 @@ class ShellTests(unittest.TestCase):
         self.checkout.mkdir()
         self.home = self.root / "home"
         self.home.mkdir()
-        self.flow = self.root / "wagflow"
+        self.flow = self.root / "wagflow space"
         (self.flow / "lib").mkdir(parents=True)
         (self.flow / "lib/wagmsg.py").touch()
+        self.implementer_roles = (
+            (self.flow / "claude/commands/wagflow-implementer.md",
+             self.home / ".claude/commands/wagflow-implementer.md"),
+            (self.flow / "codex/skills/wagflow-implementer/SKILL.md",
+             self.home / ".codex/skills/wagflow-implementer/SKILL.md"),
+        )
+        for source, _ in self.implementer_roles:
+            source.parent.mkdir(parents=True)
+            source.write_text("canonical implementer role\n", encoding="utf-8")
         self.stubs = self.root / "stubs"
         self.stubs.mkdir()
         self.env = dict(os.environ, HOME=self.home.as_posix(), WAGFLOW=self.flow.as_posix(),
@@ -145,9 +154,21 @@ class ShellTests(unittest.TestCase):
         shutil.copy2(ROOT / "install.sh", self.checkout)
         for folder in ("skills", "bin"):
             shutil.copytree(ROOT / folder, self.checkout / folder)
-        for _ in range(2):
+        for _, destination in self.implementer_roles:
+            destination.parent.mkdir(parents=True)
+            destination.write_text("stale installed role\n", encoding="utf-8")
+        config = self.home / ".codex/config.toml"
+        config.write_text("# user configuration\n", encoding="utf-8")
+        for version in range(2):
+            for source, _ in self.implementer_roles:
+                source.write_text(f"canonical role v{version}: {source.name}\n@BIN@\n",
+                                  encoding="utf-8")
             result = self.run_script(self.checkout / "install.sh", stubs=False)
             self.assertEqual(result.returncode, 0, result.stderr)
+            for source, destination in self.implementer_roles:
+                with self.subTest(version=version, destination=destination):
+                    self.assertEqual(destination.read_bytes(), source.read_bytes())
+            self.assertEqual(config.read_text(encoding="utf-8"), "# user configuration\n")
         for tool, folder, review in (("claude", ".claude", "/plugin:review"),
                                      ("codex", ".codex", "$plugin:review"),
                                      ("devin", ".config/devin", "review")):
@@ -162,6 +183,20 @@ class ShellTests(unittest.TestCase):
                     if role == "reviewer":
                         self.assertIn(review, text)
         self.assertIn("wagloop-devin", result.stdout)
+
+    def test_installer_requires_wagflow_roles_before_writes(self):
+        for source, _ in self.implementer_roles:
+            with self.subTest(source=source):
+                content = source.read_bytes()
+                source.unlink()
+                try:
+                    result = self.run_script(ROOT / "install.sh", stubs=False)
+                    self.assertEqual(result.returncode, 2, result.stderr)
+                    self.assertIn("missing WagFlow implementer role", result.stderr)
+                    self.assertIn(source.as_posix(), result.stderr)
+                    self.assertEqual(list(self.home.iterdir()), [])
+                finally:
+                    source.write_bytes(content)
 
     def test_installer_requires_devin_review_skill_before_writes(self):
         del self.env["DEVIN_REVIEW_SKILL"]

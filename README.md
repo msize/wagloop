@@ -44,6 +44,12 @@ All three review-skill variables are required. They identify existing review ski
 names. For Devin, use the name passed to its skill tool. The installer renders both roles for
 all three harnesses and can be run again after updating this checkout.
 
+The same run installs WagFlow's implementer roles: `/wagflow-implementer` for Claude Code at
+`~/.claude/commands/wagflow-implementer.md` and the Codex skill at
+`~/.codex/skills/wagflow-implementer/SKILL.md`. These files are copied verbatim from the sibling
+WagFlow checkout (or `WAGFLOW`) and refreshed on every run; their source stays in WagFlow.
+An incomplete WagFlow checkout is rejected before any installed roles are changed.
+
 Claude and Codex retain their existing skill directories. Devin skills go to
 `~/.config/devin/skills/wagloop-{author,reviewer}/SKILL.md`. The Devin launcher explicitly
 asks the agent to read that file: global skill discovery paths vary by platform, and a

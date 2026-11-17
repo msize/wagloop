@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Install the wagloop author and reviewer skills for both Claude Code and Codex, and put bin/ on
-# the user PATH hint. Safe to re-run: the skills are overwritten from this checkout, nothing else
-# is touched.
+# Install wagloop skills for Claude Code, Codex and Devin, plus WagFlow's implementer roles.
+# Safe to re-run: roles are overwritten from their source checkouts; other settings are untouched.
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -17,6 +16,14 @@ devin_review="${DEVIN_REVIEW_SKILL:?set DEVIN_REVIEW_SKILL to how Devin invokes 
   exit 2
 }
 
+for source in "$flow/claude/commands/wagflow-implementer.md" \
+              "$flow/codex/skills/wagflow-implementer/SKILL.md"; do
+  [ -f "$source" ] || {
+    echo "install: missing WagFlow implementer role at $source (update the WagFlow checkout)" >&2
+    exit 2
+  }
+done
+
 install_skill() {
   local src="$1" dst="$2" review="$3"
   mkdir -p "$dst"
@@ -29,6 +36,12 @@ for role in author reviewer; do
   install_skill "$here/skills/codex/wagloop-$role" "$HOME/.codex/skills/wagloop-$role" "$codex_review"
   install_skill "$here/skills/devin/wagloop-$role" "$HOME/.config/devin/skills/wagloop-$role" "$devin_review"
 done
+
+mkdir -p "$HOME/.claude/commands" "$HOME/.codex/skills/wagflow-implementer"
+cp "$flow/claude/commands/wagflow-implementer.md" "$HOME/.claude/commands/"
+cp "$flow/codex/skills/wagflow-implementer/SKILL.md" "$HOME/.codex/skills/wagflow-implementer/"
+echo "installed WagFlow implementer roles for Claude Code and Codex"
+
 chmod +x "$here/bin/wagloop-claude" "$here/bin/wagloop-codex" "$here/bin/wagloop-devin" "$here/bin/wagloop.py"
 
 case ":$PATH:" in
